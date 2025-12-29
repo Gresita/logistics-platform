@@ -1,0 +1,7 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+SQLAlchemy==2.0.36
+pymysql==1.1.1
+cryptography==43.0.3
+aiokafka==0.10.0
+python-dotenv==1.0.1

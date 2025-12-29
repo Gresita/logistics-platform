@@ -1,0 +1,13 @@
+{
+  "name": "logistics-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "echo \"Run dev per service: cd apps/web | cd services/api-gateway\"",
+    "infra:up": "docker compose -f infra/compose/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/compose/docker-compose.yml down"
+  }
+}
