@@ -1,16 +1,18 @@
-import os, json, asyncio
+import os
+import json
+import asyncio
 from aiokafka import AIOKafkaConsumer
 from sqlalchemy.orm import Session
 
-from app.db.session import SessionLocal, engine
-from app.db.models import Base, ShipmentEvent
+from app.db.session import SessionLocal
+from app.db.models import ShipmentEvent
 from app.kafka.producer import send_to_dlq
 
-Base.metadata.create_all(bind=engine)
-
-KAFKA_BROKERS = os.getenv("KAFKA_BROKERS", "localhost:9092")
+KAFKA_BROKERS = os.getenv("KAFKA_BROKERS", "127.0.0.1:9092")
 TOPIC = os.getenv("KAFKA_TOPIC_SHIPMENT_CREATED", "shipment.created")
+DLQ_MAX_RETRIES = int(os.getenv("DLQ_MAX_RETRIES", "3"))
 GROUP = os.getenv("KAFKA_CONSUMER_GROUP", "tracking-service")
+
 
 async def start_consumer():
     consumer = AIOKafkaConsumer(
@@ -19,19 +21,26 @@ async def start_consumer():
         group_id=GROUP,
         enable_auto_commit=False,
         auto_offset_reset="earliest",
+        session_timeout_ms=30000,
+        heartbeat_interval_ms=3000,
     )
-    await consumer.start()
 
     try:
+        await consumer.start()
+
         async for msg in consumer:
-            payload = json.loads(msg.value.decode("utf-8"))
+            raw_str = msg.value.decode("utf-8", errors="replace")
+            try:
+                payload = json.loads(raw_str)
+            except Exception as e:
+                await send_to_dlq(None, f"JSON decode error: {e}", raw_value=raw_str)
+                await consumer.commit()
+                continue
 
-            max_attempts = 3
             last_error = None
-
-            for attempt in range(1, max_attempts + 1):
+            for attempt in range(1, DLQ_MAX_RETRIES + 1):
                 try:
-                    _store_event(payload)
+                    await asyncio.to_thread(_store_event, payload)
                     await consumer.commit()
                     last_error = None
                     break
@@ -40,14 +49,24 @@ async def start_consumer():
                     await asyncio.sleep(0.5 * attempt)
 
             if last_error:
-                await send_to_dlq(payload, last_error)
+                await send_to_dlq(
+                    payload,
+                    f"processing failed after {DLQ_MAX_RETRIES} retries: {last_error}",
+                    raw_value=raw_str,
+                )
                 await consumer.commit()
 
+    except asyncio.CancelledError:
+        # lejo shutdown graceful
+        raise
     finally:
-        await consumer.stop()
+        try:
+            await consumer.stop()
+        except Exception:
+            pass
+
 
 def _store_event(payload: dict):
-    # simulate poison message for DLQ testing
     if payload.get("reference") == "FAIL":
         raise ValueError("Simulated processing failure (DLQ test)")
 

@@ -1,4 +1,6 @@
 import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from dotenv import load_dotenv
 
@@ -8,18 +10,29 @@ from app.kafka.producer import start_producer, stop_producer
 
 load_dotenv()
 
-app = FastAPI(title="Tracking Service")
 
-@app.on_event("startup")
-async def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     await start_producer()
-    asyncio.create_task(start_consumer())
 
-@app.on_event("shutdown")
-async def on_shutdown():
-    await stop_producer()
+    consumer_task = asyncio.create_task(start_consumer())
+    app.state.consumer_task = consumer_task
 
+    try:
+        yield
+    finally:
+        consumer_task.cancel()
+        try:
+            await consumer_task
+        except asyncio.CancelledError:
+            pass
+
+        await stop_producer()
+
+
+app = FastAPI(title="Tracking Service", lifespan=lifespan)
 app.include_router(events_router)
+
 
 @app.get("/health")
 def health():

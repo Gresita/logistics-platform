@@ -1,16 +1,14 @@
 import uuid
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.db.session import SessionLocal, engine
-from app.db.models import Base, Shipment
+from app.db.session import SessionLocal
+from app.db.models import Shipment
 from app.kafka.producer import publish_shipment_created
 
 router = APIRouter(prefix="/shipments", tags=["shipments"])
 
-# Krijo tabelat (për MVP; më vonë e bëjmë me Alembic migrations)
-Base.metadata.create_all(bind=engine)
 
 def get_db():
     db = SessionLocal()
@@ -19,22 +17,44 @@ def get_db():
     finally:
         db.close()
 
+
 class CreateShipmentRequest(BaseModel):
-    reference: str | None = None
+    tracking_number: str | None = None
+    origin: str = Field(..., min_length=2, max_length=100)
+    destination: str = Field(..., min_length=2, max_length=100)
+    status: str = Field(default="CREATED", min_length=2, max_length=30)
+
 
 @router.post("")
 async def create_shipment(body: CreateShipmentRequest, db: Session = Depends(get_db)):
-    ref = body.reference or str(uuid.uuid4())[:8]
+    tn = body.tracking_number or f"TRK-{uuid.uuid4().hex[:10].upper()}"
 
-    shipment = Shipment(reference=ref, status="CREATED")
+    shipment = Shipment(
+        tracking_number=tn,
+        origin=body.origin,
+        destination=body.destination,
+        status=body.status,
+    )
     db.add(shipment)
     db.commit()
     db.refresh(shipment)
 
-    await publish_shipment_created({
-        "id": shipment.id,
-        "reference": shipment.reference,
-        "status": shipment.status
-    })
+    # tracking-service e ruan reference -> e mbushim me tracking_number
+    await publish_shipment_created(
+        {
+            "id": shipment.id,
+            "tracking_number": shipment.tracking_number,
+            "reference": shipment.tracking_number,
+            "origin": shipment.origin,
+            "destination": shipment.destination,
+            "status": shipment.status,
+        }
+    )
 
-    return {"id": shipment.id, "reference": shipment.reference, "status": shipment.status}
+    return {
+        "id": shipment.id,
+        "tracking_number": shipment.tracking_number,
+        "origin": shipment.origin,
+        "destination": shipment.destination,
+        "status": shipment.status,
+    }
