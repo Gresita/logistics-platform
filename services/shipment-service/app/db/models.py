@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import String, DateTime, func
-
+from sqlalchemy import ForeignKey
 
 class Base(DeclarativeBase):
     pass
@@ -20,3 +20,12 @@ class Shipment(Base):
         DateTime(timezone=True),
         server_default=func.now()
     )
+
+class ShipmentLog(Base):
+    __tablename__ = "shipment_logs"
+
+    
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    shipment_id: Mapped[int] = mapped_column(ForeignKey("shipments.id", ondelete="CASCADE"), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

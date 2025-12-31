@@ -38,6 +38,9 @@ async def create_shipment(body: CreateShipmentRequest, db: Session = Depends(get
     db.add(shipment)
     db.commit()
     db.refresh(shipment)
+    log = ShipmentLog(shipment_id=shipment.id, status=shipment.status)
+    db.add(log)
+    db.commit()
 
     # tracking-service e ruan reference -> e mbushim me tracking_number
     await publish_shipment_created(
