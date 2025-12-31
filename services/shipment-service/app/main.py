@@ -6,6 +6,7 @@ from app.routes import shipment_logs
 from app.routes.shipments import router as shipments_router
 from app.kafka.producer import start_producer, stop_producer
 from app.routes import shipment_logs
+from app.api.api_v1.endpoints import auth
 load_dotenv()
 
 
@@ -28,3 +29,4 @@ def health():
 
 
 app.include_router(shipment_logs.router)
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
