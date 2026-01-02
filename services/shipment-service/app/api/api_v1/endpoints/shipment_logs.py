@@ -1,14 +1,13 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import require_role, get_db
 from app.db.models import Shipment, ShipmentLog
 from app.kafka.producer import publish_shipment_created
-
 router = APIRouter(prefix="/shipments", tags=["shipments"])
-
 class CreateShipmentRequest(BaseModel):
     tracking_number: str | None = None
     origin: str = Field(..., min_length=2, max_length=100)
@@ -64,3 +63,26 @@ async def delete_shipment(shipment_id: int, db: Session = Depends(get_db)):
     db.delete(shipment)
     db.commit()
     return {"detail": "Shipment deleted"}
+
+@router.get("", dependencies=[Depends(require_role(["admin", "user"]))])
+async def list_shipments(
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    shipments = (
+        db.query(Shipment)
+        .order_by(Shipment.id.desc())
+        .limit(limit)
+        .all()
+    )
+
+    return [
+        {
+            "id": s.id,
+            "tracking_number": s.tracking_number,
+            "origin": s.origin,
+            "destination": s.destination,
+            "status": s.status,
+        }
+        for s in shipments
+    ]

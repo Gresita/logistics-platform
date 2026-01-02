@@ -1,7 +1,27 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
-})
+  plugins: [react(), tailwindcss()],
+  server: {
+    proxy: {
+      // shipment-service (auth + shipments)
+      "/api": {
+        target: "http://127.0.0.1:4001",
+        changeOrigin: true,
+      },
+      "/shipments": {
+        target: "http://127.0.0.1:4001",
+        changeOrigin: true,
+      },
+
+      // tracking-service (events) - i japim prefix /tracking që mos konfliktohet
+      "/tracking": {
+        target: "http://127.0.0.1:4002",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/tracking/, ""),
+      },
+    },
+  },
+});

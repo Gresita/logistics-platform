@@ -1,53 +1,30 @@
-import { useEffect, useState } from "react";
+﻿import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import RequireAuth from "./components/RequireAuth";
 
-const API = import.meta.env.VITE_API_BASE_URL;
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import Shipments from "./pages/Shipments";
+import CreateShipment from "./pages/CreateShipment";
+import ShipmentDetails from "./pages/ShipmentDetails";
+import TrackingEvents from "./pages/TrackingEvents";
 
 export default function App() {
-  const [events, setEvents] = useState([]);
-  const [error, setError] = useState(null);
-
-  const loadEvents = async () => {
-    setError(null);
-    try {
-      const res = await fetch(`${API}/api/tracking/events`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setEvents(await res.json());
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  const createShipment = async () => {
-    setError(null);
-    try {
-      const res = await fetch(`${API}/api/shipments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await res.json();
-      await loadEvents(); // refresh
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  useEffect(() => {
-    loadEvents();
-  }, []);
-
   return (
-    <div style={{ fontFamily: "system-ui", padding: 24, maxWidth: 900, margin: "0 auto" }}>
-      <h1>Logistics Platform</h1>
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      <button onClick={createShipment}>Create shipment</button>
-      <button onClick={loadEvents} style={{ marginLeft: 8 }}>Refresh events</button>
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
-      {error && <p style={{ color: "crimson" }}>Error: {error}</p>}
+      <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+      <Route path="/shipments" element={<RequireAuth><Shipments /></RequireAuth>} />
+      <Route path="/shipments/new" element={<RequireAuth><CreateShipment /></RequireAuth>} />
+      <Route path="/shipments/:id" element={<RequireAuth><ShipmentDetails /></RequireAuth>} />
+      <Route path="/tracking-events" element={<RequireAuth><TrackingEvents /></RequireAuth>} />
 
-      <h2 style={{ marginTop: 16 }}>Tracking Events</h2>
-      <pre>{JSON.stringify(events, null, 2)}</pre>
-    </div>
+      <Route path="*" element={<div style={{ padding: 24 }}>404</div>} />
+    </Routes>
   );
 }

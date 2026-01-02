@@ -1,0 +1,23 @@
+﻿import { getToken } from "./auth";
+
+// Use Vite proxy (no CORS headaches)
+export const SHIPMENT_API = "";
+export const TRACKING_API = "/tracking";
+
+export async function apiFetch(url, { auth = true, headers, ...options } = {}) {
+  const h = { ...(headers || {}) };
+
+  if (auth) {
+    const token = getToken();
+    if (token) h.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url, { ...options, headers: h });
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    const msg = data?.detail || `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+  return data;
+}

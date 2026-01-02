@@ -8,9 +8,23 @@ from app.kafka.producer import start_producer, stop_producer
 from app.routes import shipment_logs
 from app.api.api_v1.endpoints import auth
 from app.core.seed import ensure_admin_user
+from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
+app = FastAPI(title="Shipment Service")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     ensure_admin_user()
