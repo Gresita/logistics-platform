@@ -7,3 +7,8 @@ pymysql==1.1.1
 aiokafka==0.10.0
 python-dotenv==1.0.1
 cryptography==43.0.3
+
+passlib[bcrypt]
+bcrypt==3.2.2
+python-jose[cryptography]
+python-multipart
