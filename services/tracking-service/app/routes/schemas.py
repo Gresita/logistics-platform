@@ -1,18 +1,19 @@
-from datetime import datetime
-from pydantic import BaseModel
+from __future__ import annotations
 
+from datetime import datetime
+from typing import Any
+from pydantic import BaseModel, Field
 
 class ShipmentEventOut(BaseModel):
     id: int
     event_type: str
-    shipment_id: int
-    reference: str
-    payload_json: str
+    shipment_id: int | None = None
+    reference: str | None = None
+    payload_json: Any | None = None
     created_at: datetime
-
 
 class PaginatedEvents(BaseModel):
     total: int
     limit: int
     offset: int
-    items: list[ShipmentEventOut]
+    items: list[ShipmentEventOut] = Field(default_factory=list)
