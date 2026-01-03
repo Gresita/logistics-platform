@@ -173,7 +173,7 @@ export default function Dashboard() {
             <div className="text-xs text-slate-500 mt-0.5">Distribution by shipment status</div>
           </div>
 
-          <div className="mt-4 h-[260px]">
+          <div className="mt-4 h-65">
             {loading ? (
               <Skeleton className="h-full w-full" />
             ) : (
