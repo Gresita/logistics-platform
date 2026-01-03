@@ -6,12 +6,12 @@ $TRACKING = Join-Path $ROOT "services\tracking-service"
 $SHIPMENT = Join-Path $ROOT "services\shipment-service"
 $PY = "C:\Users\Lenovo\AppData\Local\Programs\Python\Python312\python.exe"
 
-function Test-ContainerRunning($name, $runCmd) {
+function Test-ContainerRunning($name, [scriptblock]$runCmd) {
   $running = docker ps --format "{{.Names}}" | Select-String -SimpleMatch $name
   if (-not $running) {
     $exists = docker ps -a --format "{{.Names}}" | Select-String -SimpleMatch $name
     if ($exists) { docker rm -f $name | Out-Null }
-    Invoke-Expression $runCmd | Out-Null
+    & $runCmd | Out-Null
   }
 }
 
@@ -20,27 +20,26 @@ Set-Location $ROOT
 docker compose -f .\docker-compose.infra.yml up -d | Out-Null
 
 Write-Host "==> Ensuring MySQL (tracking) on host port 3307 ..."
-Test-ContainerRunning "logistics-mysql" @"
-docker run -d --name logistics-mysql `
-  -e MYSQL_ROOT_PASSWORD=root `
-  -e MYSQL_DATABASE=tracking `
-  -e MYSQL_USER=app `
-  -e MYSQL_PASSWORD=app `
-  -p 3307:3306 `
-  mysql:8.0 --default-authentication-plugin=mysql_native_password
-"@
+Test-ContainerRunning "logistics-mysql" {
+  docker run -d --name logistics-mysql `
+    -e MYSQL_ROOT_PASSWORD=root `
+    -e MYSQL_DATABASE=tracking `
+    -e MYSQL_USER=app `
+    -e MYSQL_PASSWORD=app `
+    -p 3307:3306 `
+    mysql:8.0 --default-authentication-plugin=mysql_native_password
+}
 
 Write-Host "==> Ensuring MySQL (shipments) on host port 3308 ..."
-Test-ContainerRunning "shipments-mysql" @"
-docker run -d --name shipments-mysql `
-  -e MYSQL_ROOT_PASSWORD=root `
-  -e MYSQL_DATABASE=shipments `
-  -e MYSQL_USER=app `
-  -e MYSQL_PASSWORD=app `
-  -p 3308:3306 `
-  mysql:8.0 --default-authentication-plugin=mysql_native_password
-"@
-
+Test-ContainerRunning "shipments-mysql" {
+  docker run -d --name shipments-mysql `
+    -e MYSQL_ROOT_PASSWORD=root `
+    -e MYSQL_DATABASE=shipments `
+    -e MYSQL_USER=app `
+    -e MYSQL_PASSWORD=app `
+    -p 3308:3306 `
+    mysql:8.0 --default-authentication-plugin=mysql_native_password
+}
 Write-Host "==> Waiting ports (Kafka 9092, MySQL 3307/3308) ..."
 $ports = @(9092,3307,3308)
 foreach ($p in $ports) {

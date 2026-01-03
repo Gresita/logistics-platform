@@ -1,3 +1,139 @@
-﻿export default function CreateShipment() {
-  return <div style={{ padding: 24 }}>Create Shipment</div>;
+﻿import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { PackagePlus, ArrowLeft } from "lucide-react";
+
+import DashboardLayout from "../components/DashboardLayout";
+import { apiFetch, SHIPMENT_API } from "../lib/api";
+
+export default function CreateShipment() {
+  const nav = useNavigate();
+  const [form, setForm] = useState({
+    tracking_number: "",
+    origin: "",
+    destination: "",
+    status: "CREATED",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const payload = {
+        origin: form.origin.trim(),
+        destination: form.destination.trim(),
+        status: form.status,
+      };
+      if (form.tracking_number.trim()) payload.tracking_number = form.tracking_number.trim();
+
+      const created = await apiFetch(`${SHIPMENT_API}/shipments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        auth: true,
+      });
+
+      nav(`/shipments/${created.id}`);
+    } catch (err) {
+      setError(err?.message || "Failed to create shipment");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <DashboardLayout title="Create Shipment">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="font-semibold flex items-center gap-2">
+              <PackagePlus className="w-5 h-5" />
+              New Shipment
+            </div>
+            <div className="text-xs text-slate-500 mt-1">Create a shipment (admin/user).</div>
+          </div>
+
+          <button
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-semibold"
+            onClick={() => nav("/shipments")}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+        </div>
+
+        {error ? (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        ) : null}
+
+        <form onSubmit={submit} className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">Tracking Number (optional)</label>
+            <input
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-400"
+              placeholder="TRK-XXXX (leave empty to auto-generate)"
+              value={form.tracking_number}
+              onChange={(e) => setForm((p) => ({ ...p, tracking_number: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">Status</label>
+            <select
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-400 bg-white"
+              value={form.status}
+              onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
+            >
+              <option value="CREATED">CREATED</option>
+              <option value="IN_TRANSIT">IN_TRANSIT</option>
+              <option value="DELIVERED">DELIVERED</option>
+              <option value="DELAYED">DELAYED</option>
+              <option value="CANCELLED">CANCELLED</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">Origin</label>
+            <input
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-400"
+              placeholder="Prishtina"
+              value={form.origin}
+              onChange={(e) => setForm((p) => ({ ...p, origin: e.target.value }))}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">Destination</label>
+            <input
+              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-400"
+              placeholder="Tirana"
+              value={form.destination}
+              onChange={(e) => setForm((p) => ({ ...p, destination: e.target.value }))}
+              required
+            />
+          </div>
+
+          <div className="md:col-span-2 flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-semibold"
+              onClick={() => nav("/shipments")}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold disabled:opacity-60"
+            >
+              {loading ? "Creating..." : "Create"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </DashboardLayout>
+  );
 }

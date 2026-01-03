@@ -1,3 +1,168 @@
-﻿export default function Shipments() {
-  return <div style={{ padding: 24 }}>Shipments</div>;
+﻿import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { PlusCircle, Trash2, Search } from "lucide-react";
+
+import DashboardLayout from "../components/DashboardLayout";
+import { apiFetch, SHIPMENT_API } from "../lib/api";
+import { getToken } from "../lib/auth";
+import { parseJwt } from "../lib/jwt";
+
+function StatusPill({ status }) {
+  const st = (status || "CREATED").toUpperCase();
+  const map = {
+    CREATED: "bg-slate-100 text-slate-700",
+    IN_TRANSIT: "bg-blue-100 text-blue-700",
+    DELIVERED: "bg-emerald-100 text-emerald-700",
+    DELAYED: "bg-red-100 text-red-700",
+    CANCELLED: "bg-slate-200 text-slate-700",
+  };
+  const cls = map[st] || "bg-slate-100 text-slate-700";
+  return <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-semibold ${cls}`}>{st}</span>;
+}
+
+export default function Shipments() {
+  const nav = useNavigate();
+  const token = getToken();
+  const claims = parseJwt(token);
+  const isAdmin = claims?.role === "admin";
+
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("ALL");
+
+  const load = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await apiFetch(`${SHIPMENT_API}/shipments?limit=200`, { auth: true });
+      setItems(Array.isArray(res) ? res : res?.items || []);
+    } catch (e) {
+      setError(e?.message || "Failed to load shipments");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const qq = q.trim().toLowerCase();
+    return items.filter((s) => {
+      const matchesQ =
+        !qq ||
+        String(s.id).includes(qq) ||
+        (s.tracking_number || "").toLowerCase().includes(qq) ||
+        (s.origin || "").toLowerCase().includes(qq) ||
+        (s.destination || "").toLowerCase().includes(qq);
+
+      const st = (s.status || "CREATED").toUpperCase();
+      const matchesStatus = status === "ALL" || st === status;
+      return matchesQ && matchesStatus;
+    });
+  }, [items, q, status]);
+
+  const del = async (id) => {
+    if (!confirm("Delete shipment? (admin only)")) return;
+    try {
+      await apiFetch(`${SHIPMENT_API}/shipments/${id}`, { method: "DELETE", auth: true });
+      await load();
+    } catch (e) {
+      alert(e?.message || "Delete failed");
+    }
+  };
+
+  return (
+    <DashboardLayout title="Shipments">
+      <div className="mb-4 flex flex-col md:flex-row md:items-center gap-3">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-400"
+            placeholder="Search by tracking number, origin, destination, id..."
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+
+        <select
+          className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white outline-none"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+        >
+          <option value="ALL">All statuses</option>
+          <option value="CREATED">CREATED</option>
+          <option value="IN_TRANSIT">IN_TRANSIT</option>
+          <option value="DELIVERED">DELIVERED</option>
+          <option value="DELAYED">DELAYED</option>
+          <option value="CANCELLED">CANCELLED</option>
+        </select>
+
+        <button
+          className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold"
+          onClick={() => nav("/shipments/new")}
+        >
+          <PlusCircle className="w-4 h-4" />
+          Create
+        </button>
+      </div>
+
+      {error ? (
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+      ) : null}
+
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs text-slate-500 border-b border-slate-100">
+              <tr>
+                <th className="text-left p-3">ID</th>
+                <th className="text-left p-3">Tracking #</th>
+                <th className="text-left p-3">Route</th>
+                <th className="text-left p-3">Status</th>
+                <th className="text-right p-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td className="p-4 text-slate-500" colSpan={5}>Loading...</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td className="p-4 text-slate-500" colSpan={5}>No shipments found</td></tr>
+              ) : (
+                filtered.map((s) => (
+                  <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50">
+                    <td className="p-3 font-medium">{s.id}</td>
+                    <td className="p-3 font-medium">{s.tracking_number}</td>
+                    <td className="p-3 text-slate-600">{s.origin} → {s.destination}</td>
+                    <td className="p-3"><StatusPill status={s.status} /></td>
+                    <td className="p-3 text-right whitespace-nowrap">
+                      <button className="text-indigo-700 font-semibold hover:underline" onClick={() => nav(`/shipments/${s.id}`)}>
+                        View
+                      </button>
+                      {isAdmin ? (
+                        <button
+                          className="ml-3 inline-flex items-center gap-1 text-red-600 font-semibold hover:underline"
+                          onClick={() => del(s.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="p-3 text-xs text-slate-500">
+          Tip: Delete is visible only for <span className="font-semibold">admin</span>.
+        </div>
+      </div>
+    </DashboardLayout>
+  );
 }
