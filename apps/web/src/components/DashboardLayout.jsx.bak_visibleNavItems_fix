@@ -15,7 +15,6 @@ export default function DashboardLayout({ title, children, onSearch }) {
   const { logout, role } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [q, setQ] = useState("");
-  const visibleNavItems = navItems.filter((it) => it.to !== "/shipments/new" || role === "admin");
 
   const handleLogout = () => {
     logout();
@@ -153,7 +152,6 @@ export default function DashboardLayout({ title, children, onSearch }) {
     </div>
   );
 }
-
 
 
 

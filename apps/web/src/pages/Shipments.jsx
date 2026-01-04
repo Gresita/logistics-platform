@@ -1,11 +1,11 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { PlusCircle, Trash2, Search } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { PlusCircle, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import toast from "react-hot-toast";
 
 import DashboardLayout from "../components/DashboardLayout";
 import { apiFetch, SHIPMENT_API } from "../lib/api";
-import { getToken } from "../lib/auth";
-import { parseJwt } from "../lib/jwt";
+import { useAuth } from "../context/AuthContext";
 
 function StatusPill({ status }) {
   const st = (status || "CREATED").toUpperCase();
@@ -22,24 +22,40 @@ function StatusPill({ status }) {
 
 export default function Shipments() {
   const nav = useNavigate();
-  const token = getToken();
-  const claims = parseJwt(token);
-  const isAdmin = claims?.role === "admin";
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
+
+  const [sp, setSp] = useSearchParams();
+
+  const limit = Math.min(200, Math.max(1, Number(sp.get("limit") || 20)));
+  const offset = Math.max(0, Number(sp.get("offset") || 0));
+  const q = sp.get("q") || "";
+  const status = sp.get("status") || "ALL";
+
+  const [qInput, setQInput] = useState(q);
+  const [statusInput, setStatusInput] = useState(status);
 
   const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState("ALL");
+
+  const canPrev = offset > 0;
+  const canNext = total == null ? items.length === limit : offset + limit < total;
 
   const load = async () => {
     setLoading(true);
-    setError("");
     try {
-      const res = await apiFetch(`${SHIPMENT_API}/shipments?limit=200`, { auth: true });
-      setItems(Array.isArray(res) ? res : res?.items || []);
+      const params = new URLSearchParams();
+      params.set("limit", String(limit));
+      params.set("offset", String(offset));
+      if (q.trim()) params.set("q", q.trim());
+      if (status !== "ALL") params.set("status", status);
+
+      const res = await apiFetch(`${SHIPMENT_API}/shipments?${params.toString()}`, { auth: true });
+      setItems(res?.items || []);
+      setTotal(res?.total ?? null);
     } catch (e) {
-      setError(e?.message || "Failed to load shipments");
+      toast.error(e?.message || "Failed to load shipments");
     } finally {
       setLoading(false);
     }
@@ -47,51 +63,69 @@ export default function Shipments() {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [limit, offset, q, status]);
 
-  const filtered = useMemo(() => {
-    const qq = q.trim().toLowerCase();
-    return items.filter((s) => {
-      const matchesQ =
-        !qq ||
-        String(s.id).includes(qq) ||
-        (s.tracking_number || "").toLowerCase().includes(qq) ||
-        (s.origin || "").toLowerCase().includes(qq) ||
-        (s.destination || "").toLowerCase().includes(qq);
+  const submitFilters = (e) => {
+    e.preventDefault();
+    setSp((prev) => {
+      const next = new URLSearchParams(prev);
+      const qq = qInput.trim();
+      if (qq) next.set("q", qq);
+      else next.delete("q");
 
-      const st = (s.status || "CREATED").toUpperCase();
-      const matchesStatus = status === "ALL" || st === status;
-      return matchesQ && matchesStatus;
+      if (statusInput && statusInput !== "ALL") next.set("status", statusInput);
+      else next.delete("status");
+
+      next.set("offset", "0");
+      next.set("limit", String(limit));
+      return next;
     });
-  }, [items, q, status]);
+  };
+
+  const setLimit = (v) =>
+    setSp((prev) => new URLSearchParams({ ...Object.fromEntries(prev), limit: String(v), offset: "0" }));
+
+  const goPrev = () =>
+    setSp((prev) =>
+      new URLSearchParams({ ...Object.fromEntries(prev), offset: String(Math.max(0, offset - limit)) })
+    );
+
+  const goNext = () =>
+    setSp((prev) => new URLSearchParams({ ...Object.fromEntries(prev), offset: String(offset + limit) }));
 
   const del = async (id) => {
+    if (!isAdmin) return;
     if (!confirm("Delete shipment? (admin only)")) return;
     try {
       await apiFetch(`${SHIPMENT_API}/shipments/${id}`, { method: "DELETE", auth: true });
+      toast.success("Shipment deleted");
       await load();
     } catch (e) {
-      alert(e?.message || "Delete failed");
+      toast.error(e?.message || "Delete failed");
     }
   };
 
+  const page = Math.floor(offset / limit) + 1;
+  const pages = total != null ? Math.max(1, Math.ceil(total / limit)) : null;
+
   return (
     <DashboardLayout title="Shipments">
-      <div className="mb-4 flex flex-col md:flex-row md:items-center gap-3">
+      <form onSubmit={submitFilters} className="mb-4 flex flex-col md:flex-row md:items-center gap-3">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-400"
-            placeholder="Search by tracking number, origin, destination, id..."
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search (tracking, origin, destination, id...)"
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
           />
         </div>
 
         <select
           className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white outline-none"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          value={statusInput}
+          onChange={(e) => setStatusInput(e.target.value)}
         >
           <option value="ALL">All statuses</option>
           <option value="CREATED">CREATED</option>
@@ -101,20 +135,48 @@ export default function Shipments() {
           <option value="CANCELLED">CANCELLED</option>
         </select>
 
-        <button
-          className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold"
-          onClick={() => nav("/shipments/new")}
+        <select
+          className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white outline-none"
+          value={limit}
+          onChange={(e) => setLimit(Number(e.target.value))}
         >
-          <PlusCircle className="w-4 h-4" />
-          Create
-        </button>
-      </div>
+          <option value={10}>10 / page</option>
+          <option value={20}>20 / page</option>
+          <option value={50}>50 / page</option>
+          <option value={100}>100 / page</option>
+        </select>
 
-      {error ? (
-        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-      ) : null}
+        <button
+          type="submit"
+          className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold"
+        >
+          Apply
+        </button>
+
+        {isAdmin ? (
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold"
+            onClick={() => nav("/shipments/new")}
+          >
+            <PlusCircle className="w-4 h-4" />
+            Create
+          </button>
+        ) : null}
+      </form>
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="text-xs text-slate-500">
+            Offset: {offset} · Limit: {limit}
+            {total != null ? <> · Total: {total}</> : null}
+          </div>
+          <div className="text-xs text-slate-500">
+            Page: {page}
+            {pages != null ? <> / {pages}</> : null}
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs text-slate-500 border-b border-slate-100">
@@ -128,11 +190,15 @@ export default function Shipments() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td className="p-4 text-slate-500" colSpan={5}>Loading...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td className="p-4 text-slate-500" colSpan={5}>No shipments found</td></tr>
+                <tr>
+                  <td className="p-4 text-slate-500" colSpan={5}>Loading...</td>
+                </tr>
+              ) : items.length === 0 ? (
+                <tr>
+                  <td className="p-4 text-slate-500" colSpan={5}>No shipments found</td>
+                </tr>
               ) : (
-                filtered.map((s) => (
+                items.map((s) => (
                   <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50">
                     <td className="p-3 font-medium">{s.id}</td>
                     <td className="p-3 font-medium">{s.tracking_number}</td>
@@ -159,8 +225,25 @@ export default function Shipments() {
           </table>
         </div>
 
-        <div className="p-3 text-xs text-slate-500">
-          Tip: Delete is visible only for <span className="font-semibold">admin</span>.
+        {/* Pagination */}
+        <div className="p-4 border-t border-slate-100 flex items-center justify-between">
+          <button
+            disabled={!canPrev || loading}
+            onClick={goPrev}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold disabled:opacity-50"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Prev
+          </button>
+
+          <button
+            disabled={!canNext || loading}
+            onClick={goNext}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold disabled:opacity-50"
+          >
+            Next
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </DashboardLayout>

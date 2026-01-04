@@ -1,0 +1,51 @@
+﻿# services/shipment-service/app/api/shipments.py
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from app.api.dependencies import require_role, get_db, get_current_user
+from app.db.models import Shipment
+
+router = APIRouter(prefix="/shipments", tags=["shipments"])
+
+@router.get("", dependencies=[Depends(require_role(["admin", "user", "shipman"]))])
+async def list_shipments(
+    limit: int = Query(20, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    q = db.query(Shipment)
+
+    # role-based scoping
+    if current_user.role == "user":
+        q = q.filter(Shipment.created_by == current_user.id)
+    elif current_user.role == "shipman":
+        q = q.filter(Shipment.assigned_to == current_user.id)
+
+    total = q.with_entities(func.count(Shipment.id)).scalar() or 0
+
+    items = (
+        q.order_by(Shipment.id.desc())
+         .offset(offset)
+         .limit(limit)
+         .all()
+    )
+
+    return {
+        "items": [
+            {
+                "id": s.id,
+                "tracking_number": s.tracking_number,
+                "origin": s.origin,
+                "destination": s.destination,
+                "status": s.status,
+                "created_by": getattr(s, "created_by", None),
+                "assigned_to": getattr(s, "assigned_to", None),
+            }
+            for s in items
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }

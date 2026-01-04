@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+﻿import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -6,17 +6,25 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      // shipment-service (auth + shipments)
-      "/api": {
-        target: "http://127.0.0.1:4001",
-        changeOrigin: true,
-      },
-      "/shipments": {
-        target: "http://127.0.0.1:4001",
+      // shipment-service auth (backend path already starts with /api/v1)
+      "/api/v1": {
+        target: "http://127.0.0.1:4011",
         changeOrigin: true,
       },
 
-      // tracking-service (events) - i japim prefix /tracking që mos konfliktohet
+      // shipment-service resources (backend paths are /shipments and /shipment-logs)
+      "/api/shipments": {
+        target: "http://127.0.0.1:4011",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+      "/api/shipment-logs": {
+        target: "http://127.0.0.1:4011",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+
+      // tracking-service (events) - prefix /tracking to avoid conflicts
       "/tracking": {
         target: "http://127.0.0.1:4002",
         changeOrigin: true,

@@ -12,10 +12,9 @@ const navItems = [
 
 export default function DashboardLayout({ title, children, onSearch }) {
   const nav = useNavigate();
-  const { logout, role } = useAuth();
+  const { logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [q, setQ] = useState("");
-  const visibleNavItems = navItems.filter((it) => it.to !== "/shipments/new" || role === "admin");
 
   const handleLogout = () => {
     logout();
@@ -65,7 +64,6 @@ export default function DashboardLayout({ title, children, onSearch }) {
             </div>
           </form>
 
-          {role === "admin" ? (
           <button
             className="ml-2 inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
             onClick={() => nav("/shipments/new")}
@@ -73,7 +71,6 @@ export default function DashboardLayout({ title, children, onSearch }) {
             <PlusCircle className="w-4 h-4" />
             <span className="hidden sm:inline">Create</span>
           </button>
-          ) : null}
 
           <button
             className="ml-2 inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50"
@@ -153,12 +150,6 @@ export default function DashboardLayout({ title, children, onSearch }) {
     </div>
   );
 }
-
-
-
-
-
-
 
 
 

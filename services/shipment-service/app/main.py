@@ -3,7 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from app.routes import shipment_logs
-from app.routes.shipments import router as shipments_router
+from app.api.shipments import router as shipments_router
+from app.routes.shipment_logs import router as shipment_logs_router
 from app.kafka.producer import start_producer, stop_producer
 from app.routes import shipment_logs
 from app.api.api_v1.endpoints import auth
@@ -12,7 +13,9 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 app = FastAPI(title="Shipment Service")
-
+app = FastAPI()
+app.include_router(shipments_router)
+app.include_router(shipment_logs_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
