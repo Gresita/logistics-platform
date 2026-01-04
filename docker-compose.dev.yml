@@ -1,4 +1,7 @@
+version: "3.9"
+
 services:
+  # Zookeeper
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     environment:
@@ -7,6 +10,7 @@ services:
     ports:
       - "2181:2181"
 
+  # Kafka
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     depends_on:
@@ -20,6 +24,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
+  # MySQL për Tracking
   mysql-tracking:
     image: mysql:8.0
     command: ["mysqld", "--default-authentication-plugin=mysql_native_password"]
@@ -30,7 +35,10 @@ services:
       MYSQL_PASSWORD: app
     ports:
       - "3307:3306"
+    volumes:
+      - tracking-data:/var/lib/mysql
 
+  # MySQL për Shipments
   mysql-shipments:
     image: mysql:8.0
     command: ["mysqld", "--default-authentication-plugin=mysql_native_password"]
@@ -41,3 +49,35 @@ services:
       MYSQL_PASSWORD: app
     ports:
       - "3308:3306"
+    volumes:
+      - shipments-data:/var/lib/mysql
+
+  # Shipments App
+  shipments:
+    build: ./shipments
+    depends_on:
+      - mysql-shipments
+      - kafka
+    environment:
+      DATABASE_URL: "mysql+pymysql://app:app@mysql-shipments:3306/shipments"
+      KAFKA_BROKER: "kafka:9092"
+    ports:
+      - "4001:4001"
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "4001"]
+
+  # Tracking App (nëse e ke, nëse jo mund ta heqësh)
+  tracking:
+    build: ./tracking
+    depends_on:
+      - mysql-tracking
+      - kafka
+    environment:
+      DATABASE_URL: "mysql+pymysql://app:app@mysql-tracking:3306/tracking"
+      KAFKA_BROKER: "kafka:9092"
+    ports:
+      - "4002:4002"
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "4002"]
+
+volumes:
+  shipments-data:
+  tracking-data:

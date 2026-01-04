@@ -23,3 +23,30 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
 
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  mysql-shipments:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: shipments
+      MYSQL_USER: shipments_user
+      MYSQL_PASSWORD: shipments_pass
+    ports:
+      - "3308:3306"
+    volumes:
+      - shipments-data:/var/lib/mysql
+
+  shipments:
+    build: ./shipments  # vendos path drejt folderit ku ke Dockerfile-in e Shipments
+    depends_on:
+      - mysql-shipments
+      - kafka
+    environment:
+      DATABASE_URL: "mysql+pymysql://shipments_user:shipments_pass@mysql-shipments:3306/shipments"
+      KAFKA_BROKER: "kafka:9092"
+    ports:
+      - "4001:4001"  # ky është porti ku Shipments do të jetë i arritshëm
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "4001"]
+
+volumes:
+  shipments-data:
