@@ -1,8 +1,25 @@
 ﻿import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ArrowRight, Package, Truck, Shield } from "lucide-react";
+import toast from "react-hot-toast";
 
 import { useAuth } from "../context/AuthContext";
+
+function decodeJwt(token) {
+  try {
+    const part = token.split(".")[1];
+    const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
 
 export default function Login() {
   const nav = useNavigate();
@@ -30,7 +47,6 @@ export default function Login() {
       body.append("username", form.username.trim());
       body.append("password", form.password);
 
-      // Proxy via Vite: /api -> shipment-service (4011)
       const res = await fetch(`/api/v1/auth/token`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -38,17 +54,23 @@ export default function Login() {
       });
 
       const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.detail || "Login failed");
 
-      if (!res.ok) {
-        throw new Error(data?.detail || "Login failed");
+      const token = data.access_token;
+      login(token);
+
+      const claims = decodeJwt(token);
+      const role = claims?.role;
+
+      if (role === "shipman") {
+        nav("/shipman", { replace: true });
+      } else {
+        nav(next || "/dashboard", { replace: true });
       }
-
-      login(data.access_token);
-
-      // Redirect back to requested page (if any)
-      nav(next || "/dashboard", { replace: true });
     } catch (err) {
-      setError(err?.message || "Login failed");
+      const msg = err?.message || "Login failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -130,7 +152,7 @@ export default function Login() {
               <label className="text-sm font-medium text-slate-700">Username / Email</label>
               <input
                 className="mt-1 w-full border border-slate-300 rounded-md p-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="testuser1 ose john@example.com"
+                placeholder="Shkruaj username ose email"
                 value={form.username}
                 onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))}
               />
@@ -168,3 +190,4 @@ export default function Login() {
     </div>
   );
 }
+

@@ -1,6 +1,16 @@
 ﻿import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Package, LayoutDashboard, Truck, PlusCircle, Activity, LogOut, Menu, Search } from "lucide-react";
+import {
+  Package,
+  LayoutDashboard,
+  Truck,
+  PlusCircle,
+  Activity,
+  LogOut,
+  Menu,
+  Search,
+  Users,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const navItems = [
@@ -8,6 +18,7 @@ const navItems = [
   { to: "/shipments", label: "Shipments", icon: Truck },
   { to: "/shipments/new", label: "Create Shipment", icon: PlusCircle },
   { to: "/tracking-events", label: "Tracking Events", icon: Activity },
+  { to: "/admin/users", label: "Users", icon: Users }, // admin-only
 ];
 
 export default function DashboardLayout({ title, children, onSearch }) {
@@ -15,7 +26,12 @@ export default function DashboardLayout({ title, children, onSearch }) {
   const { logout, role } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [q, setQ] = useState("");
-  const visibleNavItems = navItems.filter((it) => it.to !== "/shipments/new" || role === "admin");
+
+  const visibleNavItems = navItems.filter((it) => {
+    if (it.to === "/shipments/new") return role === "admin";
+    if (it.to === "/admin/users") return role === "admin";
+    return true;
+  });
 
   const handleLogout = () => {
     logout();
@@ -65,14 +81,15 @@ export default function DashboardLayout({ title, children, onSearch }) {
             </div>
           </form>
 
+          {/* Admin quick create */}
           {role === "admin" ? (
-          <button
-            className="ml-2 inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
-            onClick={() => nav("/shipments/new")}
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span className="hidden sm:inline">Create</span>
-          </button>
+            <button
+              className="ml-2 inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+              onClick={() => nav("/shipments/new")}
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Create</span>
+            </button>
           ) : null}
 
           <button
@@ -153,15 +170,3 @@ export default function DashboardLayout({ title, children, onSearch }) {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-

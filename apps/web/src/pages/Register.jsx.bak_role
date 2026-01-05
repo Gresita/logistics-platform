@@ -1,17 +1,16 @@
 ﻿import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Package, Truck, Shield, ArrowRight } from "lucide-react";
-import { apiFetch } from "../lib/api";
+import { apiFetch, SHIPMENT_API } from "../lib/api";
 
 export default function Register() {
   const nav = useNavigate();
 
   const [form, setForm] = useState({
     fullName: "",
-    email: "",
+    email: "", // përdoret si username në backend
     password: "",
     confirmPassword: "",
-    role: "user", // user | shipman
   });
 
   const [fieldErrors, setFieldErrors] = useState({});
@@ -56,7 +55,6 @@ export default function Register() {
         body: JSON.stringify({
           username: form.email.trim(),
           password: form.password,
-          role: form.role, // user | shipman
         }),
       });
 
@@ -70,12 +68,14 @@ export default function Register() {
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-[oklch(0.25_0.08_240)] via-[oklch(0.20_0.06_250)] to-[oklch(0.15_0.04_260)] flex items-center justify-center p-4">
+      {/* Background blobs */}
       <div className="absolute inset-0 pointer-events-none opacity-15">
         <div className="absolute -top-10 -left-10 w-72 h-72 bg-blue-500 rounded-full blur-3xl" />
         <div className="absolute -bottom-10 -right-10 w-96 h-96 bg-blue-400 rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-10 relative z-10 items-center">
+        {/* Left branding */}
         <div className="hidden lg:flex flex-col text-white space-y-8 pr-8">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -90,17 +90,30 @@ export default function Register() {
           </div>
 
           <div className="space-y-6">
-            <Feature icon={<Truck className="w-5 h-5 text-blue-300" />} title="Gjurmim në Kohë Reale" desc="Evente të dërgesave në kohë reale përmes Kafka." />
-            <Feature icon={<Package className="w-5 h-5 text-blue-300" />} title="Menaxhim i Thjeshtë" desc="Krijo dërgesa, shiko status logs, dhe kontrollo historikun." />
-            <Feature icon={<Shield className="w-5 h-5 text-blue-300" />} title="Siguri e Plotë" desc="JWT authentication + role-based access control." />
+            <Feature
+              icon={<Truck className="w-5 h-5 text-blue-300" />}
+              title="Gjurmim në Kohë Reale"
+              desc="Evente të dërgesave në kohë reale përmes Kafka."
+            />
+            <Feature
+              icon={<Package className="w-5 h-5 text-blue-300" />}
+              title="Menaxhim i Thjeshtë"
+              desc="Krijo dërgesa, shiko status logs, dhe kontrollo historikun."
+            />
+            <Feature
+              icon={<Shield className="w-5 h-5 text-blue-300" />}
+              title="Siguri e Plotë"
+              desc="JWT authentication + role-based access control."
+            />
           </div>
         </div>
 
+        {/* Right card */}
         <div className="w-full">
           <div className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl border border-white/40 p-6 sm:p-8">
             <h2 className="text-2xl font-bold text-slate-900">Krijo Llogari</h2>
             <p className="text-slate-600 mt-1">
-              Zgjedh çfarë llogarie don me kriju: <span className="font-semibold">User</span> ose <span className="font-semibold">Shipman</span>
+              Plotëso të dhënat për të filluar me LogisticsPro
             </p>
 
             {apiError ? (
@@ -109,10 +122,10 @@ export default function Register() {
               </div>
             ) : null}
 
-            <form onSubmit={submit} autoComplete="off" className="mt-6 space-y-5">
+            <form onSubmit={submit} className="mt-6 space-y-5">
               <Field
                 label="Emri i Plotë"
-                placeholder="Emri dhe mbiemri"
+                placeholder="John Doe"
                 value={form.fullName}
                 onChange={(v) => setField("fullName", v)}
                 error={fieldErrors.fullName}
@@ -120,38 +133,11 @@ export default function Register() {
 
               <Field
                 label="Email (Username)"
-                placeholder="email@example.com"
+                placeholder="john@example.com"
                 value={form.email}
                 onChange={(v) => setField("email", v)}
                 error={fieldErrors.email}
               />
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-800">Çfarë llogarie?</label>
-                <div className="flex gap-3">
-                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="role"
-                      value="user"
-                      checked={form.role === "user"}
-                      onChange={() => setField("role", "user")}
-                    />
-                    <span className="text-sm font-semibold">User</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="role"
-                      value="shipman"
-                      checked={form.role === "shipman"}
-                      onChange={() => setField("role", "shipman")}
-                    />
-                    <span className="text-sm font-semibold">Shipman</span>
-                  </label>
-                </div>
-              </div>
 
               <Field
                 label="Fjalëkalimi"
@@ -189,7 +175,7 @@ export default function Register() {
             </form>
 
             <p className="mt-6 text-xs text-slate-500">
-              Shënim: <span className="font-medium">Admin</span> nuk krijohet nga Register. Admin caktohet vetëm nga admin panel.
+              Duke u regjistruar, llogaria krijohet si <span className="font-medium">user</span> (admin krijohet vetëm nga sistemi).
             </p>
           </div>
         </div>
@@ -231,3 +217,5 @@ function Field({ label, placeholder, value, onChange, error, type = "text" }) {
     </div>
   );
 }
+
+

@@ -20,8 +20,7 @@ class CreateShipmentRequest(BaseModel):
 class AssignShipmentRequest(BaseModel):
     assigned_to: int
 
-class UpdateShipmentStatusRequest(BaseModel):
-    status: str = Field(..., min_length=2, max_length=30)
+
 
 @router.get("", dependencies=[Depends(require_role(["admin", "user", "shipman"]))])
 async def list_shipments(
@@ -55,8 +54,7 @@ async def list_shipments(
                 "origin": s.origin,
                 "destination": s.destination,
                 "status": s.status,
-                "assigned_to": getattr(s, "assigned_to", None),
-}
+            }
             for s in rows
         ],
         "total": total,
@@ -133,39 +131,8 @@ async def assign_shipment(
 
     return {"id": s.id, "assigned_to": s.assigned_to}
 
-ALLOWED_SHIPMAN_STATUSES = {"IN_TRANSIT", "DELIVERED", "DELAYED", "CANCELLED"}
 
-@router.patch("/{shipment_id}/status", dependencies=[Depends(require_role(["admin", "shipman"]))])
-async def update_shipment_status(
-    shipment_id: int,
-    body: UpdateShipmentStatusRequest,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    s = db.query(Shipment).filter(Shipment.id == shipment_id).first()
-    if s is None:
-        raise HTTPException(status_code=404, detail="Shipment not found")
-
-    new_status = body.status.upper().strip()
-
-    # shipman can update ONLY assigned shipments + only allowed statuses
-    if current_user.role == "shipman":
-        if not hasattr(Shipment, "assigned_to"):
-            raise HTTPException(status_code=500, detail="Shipment.assigned_to column missing")
-        if s.assigned_to != current_user.id:
-            raise HTTPException(status_code=403, detail="Not allowed for this shipment")
-        if new_status not in ALLOWED_SHIPMAN_STATUSES:
-            raise HTTPException(status_code=400, detail=f"Invalid status for shipman: {new_status}")
-
-    s.status = new_status
-    db.commit()
-    db.refresh(s)
-
-    db.add(ShipmentLog(shipment_id=s.id, status=s.status))
-    db.commit()
-
-    return {"id": s.id, "status": s.status}
-@router.delete("/{shipment_id}", dependencies=[Depends(require_role(["admin"]))])  # admin-only
+("/{shipment_id}", dependencies=[Depends(require_role(["admin"]))])  # admin-only
 async def delete_shipment(shipment_id: int, db: Session = Depends(get_db)):
     shipment = db.query(Shipment).filter(Shipment.id == shipment_id).first()
     if shipment is None:
@@ -173,6 +140,4 @@ async def delete_shipment(shipment_id: int, db: Session = Depends(get_db)):
     db.delete(shipment)
     db.commit()
     return {"detail": "Shipment deleted"}
-
-
 

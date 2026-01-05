@@ -1,9 +1,11 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ListChecks, Package, RefreshCw } from "lucide-react";
+import { ArrowLeft, ListChecks, Package, RefreshCw, Save } from "lucide-react";
+import toast from "react-hot-toast";
 
 import DashboardLayout from "../components/DashboardLayout";
 import { apiFetch, SHIPMENT_API } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 
 function StatusPill({ status }) {
   const st = (status || "CREATED").toUpperCase();
@@ -33,9 +35,15 @@ function Card({ title, subtitle, children, right }) {
   );
 }
 
+const SHIPMAN_ALLOWED = ["IN_TRANSIT", "DELIVERED", "DELAYED", "CANCELLED"];
+
 export default function ShipmentDetails() {
   const nav = useNavigate();
   const { id } = useParams();
+  const { role } = useAuth();
+
+  const isAdmin = role === "admin";
+  const isShipman = role === "shipman";
 
   const [shipments, setShipments] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -44,12 +52,15 @@ export default function ShipmentDetails() {
   const [error, setError] = useState("");
   const [logsError, setLogsError] = useState("");
 
+  const [statusInput, setStatusInput] = useState("IN_TRANSIT");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
   const loadShipment = async () => {
     setLoading(true);
     setError("");
     try {
-      // MVP approach: fetch list then find by id (since we don't have GET /shipments/{id} endpoint)
-      const res = await apiFetch(`${SHIPMENT_API}/shipments?limit=200`, { auth: true });
+      // MVP: fetch list then find by id
+      const res = await apiFetch(`${SHIPMENT_API}/shipments?limit=200&offset=0`, { auth: true });
       const list = Array.isArray(res) ? res : res?.items || [];
       setShipments(list);
     } catch (e) {
@@ -63,8 +74,7 @@ export default function ShipmentDetails() {
     setLoadingLogs(true);
     setLogsError("");
     try {
-      const res = await apiFetch(`${SHIPMENT_API}/shipment-logs/${id}`, { auth: true });
-      // backend might return array; keep generic
+      const res = await apiFetch(`${SHIPMENT_API}/shipment-logs/${id}?limit=50&offset=0`, { auth: true });
       setLogs(Array.isArray(res) ? res : res?.items || []);
     } catch (e) {
       setLogsError(e?.message || "Failed to load shipment logs");
@@ -83,6 +93,35 @@ export default function ShipmentDetails() {
     const n = Number(id);
     return shipments.find((s) => Number(s.id) === n) || null;
   }, [shipments, id]);
+
+  // keep dropdown synced with current shipment status
+  useEffect(() => {
+    if (!shipment?.status) return;
+    const st = String(shipment.status).toUpperCase();
+    if (SHIPMAN_ALLOWED.includes(st)) setStatusInput(st);
+    else setStatusInput("IN_TRANSIT");
+  }, [shipment?.status]);
+
+  const updateStatus = async () => {
+    if (!shipment) return;
+
+    setUpdatingStatus(true);
+    try {
+      await apiFetch(`${SHIPMENT_API}/shipments/${shipment.id}/status`, {
+        method: "PATCH",
+        auth: true,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: statusInput }),
+      });
+      toast.success("Status updated");
+      await loadShipment();
+      await loadLogs();
+    } catch (e) {
+      toast.error(e?.message || "Failed to update status");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   return (
     <DashboardLayout title="Shipment Details">
@@ -117,11 +156,7 @@ export default function ShipmentDetails() {
           <Card
             title={shipment ? `Shipment #${shipment.id}` : `Shipment #${id}`}
             subtitle="Shipment data from shipment-service"
-            right={
-              shipment ? (
-                <StatusPill status={shipment.status} />
-              ) : null
-            }
+            right={shipment ? <StatusPill status={shipment.status} /> : null}
           >
             {loading ? (
               <div className="text-sm text-slate-500">Loading shipment...</div>
@@ -142,15 +177,48 @@ export default function ShipmentDetails() {
 
         {/* Quick actions */}
         <div className="lg:col-span-1">
-          <Card title="Quick Actions" subtitle="Common actions for this shipment">
-            <div className="space-y-2">
-              <button
-                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold"
-                onClick={() => nav("/shipments/new")}
-              >
-                <Package className="w-4 h-4" />
-                Create another shipment
-              </button>
+          <Card title="Quick Actions" subtitle="What you can do for this shipment">
+            <div className="space-y-3">
+              {/* Shipman/Admin: update status */}
+              {(isShipman || isAdmin) ? (
+                <div className="rounded-xl border border-slate-200 p-3">
+                  <div className="text-xs text-slate-500 mb-2">Update status</div>
+                  <div className="flex gap-2">
+                    <select
+                      className="flex-1 px-3 py-2 rounded-xl border border-slate-200 bg-white outline-none"
+                      value={statusInput}
+                      onChange={(e) => setStatusInput(e.target.value)}
+                      disabled={!shipment || updatingStatus}
+                    >
+                      {SHIPMAN_ALLOWED.map((st) => (
+                        <option key={st} value={st}>{st}</option>
+                      ))}
+                    </select>
+                    <button
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold disabled:opacity-60"
+                      onClick={updateStatus}
+                      disabled={!shipment || updatingStatus}
+                    >
+                      <Save className="w-4 h-4" />
+                      {updatingStatus ? "Saving..." : "Update"}
+                    </button>
+                  </div>
+                  <div className="mt-2 text-xs text-slate-500">
+                    Shipman can update only assigned shipments.
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Admin only: create shipment */}
+              {isAdmin ? (
+                <button
+                  className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold"
+                  onClick={() => nav("/shipments/new")}
+                >
+                  <Package className="w-4 h-4" />
+                  Create another shipment
+                </button>
+              ) : null}
 
               <button
                 className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-semibold"
@@ -159,10 +227,6 @@ export default function ShipmentDetails() {
                 <ListChecks className="w-4 h-4" />
                 View tracking events
               </button>
-            </div>
-
-            <div className="mt-4 text-xs text-slate-500">
-              Admin-only actions (e.g., delete) are handled in Shipments list.
             </div>
           </Card>
         </div>
