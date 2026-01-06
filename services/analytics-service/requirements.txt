@@ -1,0 +1,5 @@
+﻿fastapi
+uvicorn[standard]
+aiokafka
+SQLAlchemy>=2.0
+pydantic

@@ -1,12 +1,14 @@
 ﻿import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import require_role, get_db
+from app.api.dependencies import require_role, get_db, get_current_user
 from app.db.models import Shipment, ShipmentLog
-from app.kafka.producer import publish_shipment_created
+from app.kafka.producer import publish_shipment_created, publish_shipment_status_changed
 
 router = APIRouter(prefix="/shipments", tags=["shipments"])
 
@@ -18,32 +20,59 @@ class CreateShipmentRequest(BaseModel):
     status: str = Field(default="CREATED", min_length=2, max_length=30)
 
 
-@router.get("", dependencies=[Depends(require_role(["admin", "user"]))])
+class AssignShipmentRequest(BaseModel):
+    assigned_to: int
+
+
+class UpdateShipmentStatusRequest(BaseModel):
+    status: str = Field(..., min_length=2, max_length=30)
+
+
+ALLOWED_SHIPMAN_STATUSES = {"IN_TRANSIT", "DELIVERED", "DELAYED", "CANCELLED"}
+
+
+@router.get("", dependencies=[Depends(require_role(["admin", "user", "shipman"]))])
 async def list_shipments(
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(20, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
 ):
-    shipments = (
-        db.query(Shipment)
-        .order_by(Shipment.id.desc())
-        .limit(limit)
-        .all()
-    )
+    q = db.query(Shipment)
 
-    return [
-        {
-            "id": s.id,
-            "tracking_number": s.tracking_number,
-            "origin": s.origin,
-            "destination": s.destination,
-            "status": s.status,
-        }
-        for s in shipments
-    ]
+    # scoping
+    if current_user.role == "user" and hasattr(Shipment, "created_by"):
+        q = q.filter(Shipment.created_by == current_user.id)
+    elif current_user.role == "shipman" and hasattr(Shipment, "assigned_to"):
+        q = q.filter(Shipment.assigned_to == current_user.id)
+
+    total = q.with_entities(func.count(Shipment.id)).scalar() or 0
+    rows = q.order_by(Shipment.id.desc()).offset(offset).limit(limit).all()
+
+    return {
+        "items": [
+            {
+                "id": s.id,
+                "tracking_number": s.tracking_number,
+                "origin": s.origin,
+                "destination": s.destination,
+                "status": s.status,
+                "assigned_to": getattr(s, "assigned_to", None),
+            }
+            for s in rows
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
-@router.post("", dependencies=[Depends(require_role(["admin", "user"]))])
-async def create_shipment(body: CreateShipmentRequest, db: Session = Depends(get_db)):
+@router.post("", dependencies=[Depends(require_role(["admin"]))])  # admin-only
+async def create_shipment(
+    body: CreateShipmentRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     tn = body.tracking_number or f"TRK-{uuid.uuid4().hex[:10].upper()}"
 
     shipment = Shipment(
@@ -52,16 +81,17 @@ async def create_shipment(body: CreateShipmentRequest, db: Session = Depends(get
         destination=body.destination,
         status=body.status,
     )
+
+    if hasattr(Shipment, "created_by"):
+        shipment.created_by = current_user.id
+
     db.add(shipment)
     db.commit()
     db.refresh(shipment)
 
-    # Krijo log inicial
-    log = ShipmentLog(shipment_id=shipment.id, status=shipment.status)
-    db.add(log)
+    db.add(ShipmentLog(shipment_id=shipment.id, status=shipment.status))
     db.commit()
 
-    # Publish event te Kafka (tracking-service)
     await publish_shipment_created(
         {
             "id": shipment.id,
@@ -79,10 +109,77 @@ async def create_shipment(body: CreateShipmentRequest, db: Session = Depends(get
         "origin": shipment.origin,
         "destination": shipment.destination,
         "status": shipment.status,
+        "assigned_to": getattr(shipment, "assigned_to", None),
     }
 
 
-@router.delete("/{shipment_id}", dependencies=[Depends(require_role(["admin"]))])
+@router.patch("/{shipment_id}/assign", dependencies=[Depends(require_role(["admin"]))])  # admin-only
+async def assign_shipment(
+    shipment_id: int,
+    body: AssignShipmentRequest,
+    db: Session = Depends(get_db),
+):
+    s = db.query(Shipment).filter(Shipment.id == shipment_id).first()
+    if s is None:
+        raise HTTPException(status_code=404, detail="Shipment not found")
+
+    if not hasattr(Shipment, "assigned_to"):
+        raise HTTPException(status_code=500, detail="Shipment.assigned_to column missing")
+
+    s.assigned_to = body.assigned_to
+    db.commit()
+    db.refresh(s)
+
+    db.add(ShipmentLog(shipment_id=s.id, status=s.status))
+    db.commit()
+
+    return {"id": s.id, "assigned_to": s.assigned_to}
+
+
+@router.patch("/{shipment_id}/status", dependencies=[Depends(require_role(["admin", "shipman"]))])
+async def update_shipment_status(
+    shipment_id: int,
+    body: UpdateShipmentStatusRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    s = db.query(Shipment).filter(Shipment.id == shipment_id).first()
+    if s is None:
+        raise HTTPException(status_code=404, detail="Shipment not found")
+
+    new_status = body.status.upper().strip()
+
+    if current_user.role == "shipman":
+        if not hasattr(Shipment, "assigned_to"):
+            raise HTTPException(status_code=500, detail="Shipment.assigned_to column missing")
+        if s.assigned_to != current_user.id:
+            raise HTTPException(status_code=403, detail="Not allowed for this shipment")
+        if new_status not in ALLOWED_SHIPMAN_STATUSES:
+            raise HTTPException(status_code=400, detail=f"Invalid status for shipman: {new_status}")
+
+    s.status = new_status
+    db.commit()
+    db.refresh(s)
+
+    db.add(ShipmentLog(shipment_id=s.id, status=s.status))
+    db.commit()
+
+    # Kafka event for analytics-service
+    await publish_shipment_status_changed(
+        {
+            "shipment_id": s.id,
+            "status": s.status,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "assigned_to": getattr(s, "assigned_to", None),
+            "origin": s.origin,
+            "destination": s.destination,
+        }
+    )
+
+    return {"id": s.id, "status": s.status}
+
+
+@router.delete("/{shipment_id}", dependencies=[Depends(require_role(["admin"]))])  # admin-only
 async def delete_shipment(shipment_id: int, db: Session = Depends(get_db)):
     shipment = db.query(Shipment).filter(Shipment.id == shipment_id).first()
     if shipment is None:

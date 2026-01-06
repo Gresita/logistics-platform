@@ -1,5 +1,4 @@
-﻿from datetime import datetime, timezone
-import uuid
+﻿import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -7,7 +6,8 @@ from sqlalchemy import func
 
 from app.api.dependencies import require_role, get_db, get_current_user
 from app.db.models import Shipment, ShipmentLog
-from app.kafka.producer import publish_shipment_created, publish_shipment_status_changed
+from app.kafka.producer import publish_shipment_created
+
 router = APIRouter(prefix="/shipments", tags=["shipments"])
 
 
@@ -163,17 +163,6 @@ async def update_shipment_status(
 
     db.add(ShipmentLog(shipment_id=s.id, status=s.status))
     db.commit()
-    # Kafka event for analytics-service
-    await publish_shipment_status_changed(
-        {
-            "shipment_id": s.id,
-            "status": s.status,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "assigned_to": getattr(s, "assigned_to", None),
-            "origin": s.origin,
-            "destination": s.destination,
-        }
-    )
 
     return {"id": s.id, "status": s.status}
 @router.delete("/{shipment_id}", dependencies=[Depends(require_role(["admin"]))])  # admin-only
@@ -184,7 +173,6 @@ async def delete_shipment(shipment_id: int, db: Session = Depends(get_db)):
     db.delete(shipment)
     db.commit()
     return {"detail": "Shipment deleted"}
-
 
 
 

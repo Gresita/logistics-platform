@@ -5,7 +5,7 @@ $ROOT = "C:\Users\Lenovo\Desktop\together\logistics-platform"
 $TRACKING = Join-Path $ROOT "services\tracking-service"
 $SHIPMENT = Join-Path $ROOT "services\shipment-service"
 $PY = "C:\Users\Lenovo\AppData\Local\Programs\Python\Python312\python.exe"
-
+$ANALYTICS = Join-Path $ROOT "services\analytics-service"
 function Test-ContainerRunning($name, [scriptblock]$runCmd) {
   $running = docker ps --format "{{.Names}}" | Select-String -SimpleMatch $name
   if (-not $running) {
@@ -63,8 +63,14 @@ Start-Process powershell -ArgumentList @(
   "-Command",
   "cd `"$SHIPMENT`"; if (!(Test-Path .\.venv)) { & `"$PY`" -m venv .venv }; .\.venv\Scripts\python.exe -m pip install -r requirements.txt; .\.venv\Scripts\python.exe -m pip install alembic; .\.venv\Scripts\alembic.exe -c alembic.ini upgrade head; .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 4001 --log-level info"
 )
-
+Write-Host "==> Starting ANALYTICS service (4020) ..."
+Start-Process powershell -ArgumentList @(
+  "-NoExit",
+  "-Command",
+  "cd `"$ANALYTICS`"; if (!(Test-Path .\.venv)) { & `"$PY`" -m venv .venv }; .\.venv\Scripts\python.exe -m pip install -r requirements.txt; `$env:KAFKA_BROKERS='localhost:9092'; `$env:NO_UPDATE_HOURS='6'; `$env:ANOMALY_INTERVAL_SECONDS='60'; .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 4020 --log-level info"
+)
 Write-Host ""
 Write-Host "==> DONE. Test:"
 Write-Host "    http://127.0.0.1:4001/health"
 Write-Host "    http://127.0.0.1:4002/health"
+Write-Host "    http://127.0.0.1:4020/api/v1/analytics/anomalies"
