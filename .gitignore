@@ -21,3 +21,7 @@ venv/
 .DS_Store
 .idea/
 .vscode/
+# local db files
+services/**/analytics.db
+services/**/*.db
+

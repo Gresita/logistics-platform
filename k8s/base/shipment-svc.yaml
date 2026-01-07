@@ -1,0 +1,12 @@
+﻿apiVersion: v1
+kind: Service
+metadata:
+  name: shipment-service
+  namespace: logistics
+spec:
+  selector:
+    app: shipment-service
+  ports:
+    - name: http
+      port: 4001
+      targetPort: 4001

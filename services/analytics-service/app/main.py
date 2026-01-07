@@ -5,6 +5,7 @@ import asyncio
 from datetime import datetime, timezone
 
 from fastapi import FastAPI
+from app.observability import setup_observability
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
@@ -69,6 +70,7 @@ def _scan_no_update():
         db.close()
 
 app = FastAPI(title="analytics-service")
+setup_observability(app, "analytics-service")
 
 app.add_middleware(
     CORSMiddleware,
@@ -190,4 +192,8 @@ def _scan_delayed_spike():
             db.commit()
     finally:
         db.close()
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "analytics-service"}
 

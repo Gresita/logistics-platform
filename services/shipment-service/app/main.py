@@ -8,6 +8,7 @@ from app.routes.shipment_logs import router as shipment_logs_router
 from app.api.api_v1.endpoints import auth, admin
 from app.kafka.producer import start_producer, stop_producer
 from app.core.seed import ensure_admin_user
+from app.observability import setup_observability
 
 load_dotenv()
 
@@ -26,6 +27,8 @@ app = FastAPI(
     title="Shipment Service",
     lifespan=lifespan
 )
+setup_observability(app, "shipment-service")
+
 
 # CORS
 app.add_middleware(
@@ -51,3 +54,10 @@ app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "shipment-service"}
+
+
+
+
+
+
+

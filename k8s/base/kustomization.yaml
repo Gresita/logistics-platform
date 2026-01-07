@@ -1,0 +1,9 @@
+﻿resources:
+  - namespace.yaml
+  - shipment-deploy.yaml
+  - shipment-svc.yaml
+  - tracking-deploy.yaml
+  - tracking-svc.yaml
+  - analytics-deploy.yaml
+  - analytics-svc.yaml
+  - ingress.yaml

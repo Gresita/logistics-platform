@@ -1,4 +1,4 @@
-import os
+﻿import os
 import json
 import asyncio
 from aiokafka import AIOKafkaConsumer
@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.db.models import ShipmentEvent
 from app.kafka.producer import send_to_dlq
+from app.kafka.avro_codec import decode_confluent
 
 KAFKA_BROKERS = os.getenv("KAFKA_BROKERS", "127.0.0.1:9092")
 TOPIC = os.getenv("KAFKA_TOPIC_SHIPMENT_CREATED", "shipment.created")

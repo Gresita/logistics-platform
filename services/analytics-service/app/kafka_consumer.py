@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 from aiokafka import AIOKafkaConsumer
 
 from app.db import SessionLocal
-from app.models import ShipmentState, RouteStats, RouteStats, StatusBucket
+from app.avro_codec import decode_confluent
+from app.models import ShipmentState, RouteStats
 
 KAFKA_BROKERS = os.getenv("KAFKA_BROKERS", "127.0.0.1:9092")
 TOPIC_CREATED = os.getenv("KAFKA_TOPIC_SHIPMENT_CREATED", "shipment.created")
@@ -33,11 +34,22 @@ async def run_consumer(stop_event):
             if stop_event.is_set():
                 break
 
-            raw = msg.value.decode("utf-8", errors="replace")
+            payload = None
+
+            # 1) try Avro
             try:
-                payload = json.loads(raw)
+                payload = decode_confluent(msg.value)
             except Exception:
-                continue
+                payload = None
+
+            # 2) fallback JSON
+            if payload is None:
+                raw = msg.value.decode("utf-8", errors="replace")
+                try:
+                    payload = json.loads(raw)
+                except Exception:
+                    continue
+
 
             if msg.topic == TOPIC_CREATED:
                 _handle_created(payload)
@@ -140,5 +152,6 @@ def _handle_status_changed(payload: dict):
         db.commit()
     finally:
         db.close()
+
 
 

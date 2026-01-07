@@ -1,0 +1,47 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipment-service
+  namespace: logistics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shipment-service
+  template:
+    metadata:
+      labels:
+        app: shipment-service
+    spec:
+      containers:
+        - name: shipment-service
+          image: shipment-service:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4001
+          env:
+            - name: DATABASE_URL
+              value: "mysql+pymysql://shipments_user:shipments_pass@host.docker.internal:3308/shipments"
+            - name: KAFKA_BROKERS
+              value: "kubernetes.docker.internal:9092"
+            - name: SCHEMA_REGISTRY_URL
+              value: "http://host.docker.internal:8081"
+            - name: KAFKA_USE_AVRO
+              value: "true"
+            - name: OTEL_ENABLED
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://host.docker.internal:4318/v1/traces"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+

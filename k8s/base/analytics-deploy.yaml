@@ -1,0 +1,43 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-service
+  namespace: logistics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: analytics-service
+  template:
+    metadata:
+      labels:
+        app: analytics-service
+    spec:
+      containers:
+        - name: analytics-service
+          image: analytics-service:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4020
+          env:
+            - name: KAFKA_BROKERS
+              value: "kubernetes.docker.internal:9092"
+            - name: SCHEMA_REGISTRY_URL
+              value: "http://host.docker.internal:8081"
+            - name: OTEL_ENABLED
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://host.docker.internal:4318/v1/traces"
+          readinessProbe:
+            httpGet:
+              path: /api/v1/analytics/summary
+              port: 4020
+            initialDelaySeconds: 8
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/analytics/summary
+              port: 4020
+            initialDelaySeconds: 15
+            periodSeconds: 15
+

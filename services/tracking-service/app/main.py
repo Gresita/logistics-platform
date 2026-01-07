@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from app.routes.events import router as events_router
 from app.kafka.consumer import start_consumer
 from app.kafka.producer import start_producer, stop_producer
+from app.observability import setup_observability
 
 load_dotenv()
 
@@ -31,6 +32,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Tracking Service", lifespan=lifespan)
+setup_observability(app, "tracking-service")
 app.include_router(events_router)
 
 

@@ -1,0 +1,17 @@
+﻿apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: logistics-ingress
+  namespace: logistics
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: logistics.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: shipment-service
+                port: { number: 4001 }

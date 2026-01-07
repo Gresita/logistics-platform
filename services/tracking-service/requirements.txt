@@ -5,3 +5,15 @@ pymysql==1.1.1
 cryptography==43.0.3
 aiokafka==0.10.0
 python-dotenv==1.0.1
+
+prometheus-fastapi-instrumentator
+
+opentelemetry-sdk
+
+opentelemetry-exporter-otlp
+
+opentelemetry-instrumentation-fastapi
+
+httpx
+
+fastavro

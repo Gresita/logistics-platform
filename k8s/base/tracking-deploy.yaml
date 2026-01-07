@@ -1,0 +1,55 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracking-service
+  namespace: logistics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tracking-service
+  template:
+    metadata:
+      labels:
+        app: tracking-service
+    spec:
+      containers:
+        - name: tracking-service
+          image: tracking-service:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4002
+          env:
+            - name: DATABASE_URL
+              value: "mysql+pymysql://shipments_user:shipments_pass@host.docker.internal:3308/shipments"
+            - name: DB_HOST
+              value: "host.docker.internal"
+            - name: DB_PORT
+              value: "3308"
+            - name: DB_USER
+              value: "shipments_user"
+            - name: DB_PASSWORD
+              value: "shipments_pass"
+            - name: DB_NAME
+              value: "shipments"
+            - name: KAFKA_BROKERS
+              value: "kubernetes.docker.internal:9092"
+            - name: SCHEMA_REGISTRY_URL
+              value: "http://host.docker.internal:8081"
+            - name: OTEL_ENABLED
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://host.docker.internal:4318/v1/traces"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4002
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4002
+            initialDelaySeconds: 10
+            periodSeconds: 10
+

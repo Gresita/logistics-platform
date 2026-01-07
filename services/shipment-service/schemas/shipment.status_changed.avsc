@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "ShipmentStatusChanged",
+  "namespace": "logistics.shipment",
+  "fields": [
+    {"name":"shipment_id","type":"int"},
+    {"name":"status","type":"string"},
+    {"name":"timestamp","type":"string"},
+    {"name":"assigned_to","type":["null","int"],"default":null},
+    {"name":"origin","type":"string"},
+    {"name":"destination","type":"string"}
+  ]
+}

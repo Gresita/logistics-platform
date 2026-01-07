@@ -1,0 +1,13 @@
+﻿{
+  "type": "record",
+  "name": "ShipmentCreated",
+  "namespace": "logistics.shipment",
+  "fields": [
+    {"name":"id","type":"int"},
+    {"name":"tracking_number","type":"string"},
+    {"name":"reference","type":"string"},
+    {"name":"origin","type":"string"},
+    {"name":"destination","type":"string"},
+    {"name":"status","type":"string"}
+  ]
+}

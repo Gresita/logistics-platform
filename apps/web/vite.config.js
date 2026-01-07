@@ -8,18 +8,18 @@ export default defineConfig({
     proxy: {
       // shipment-service auth (backend path already starts with /api/v1)
       "/api/v1": {
-        target: "http://127.0.0.1:4011",
+        target: "http://127.0.0.1:4001",
         changeOrigin: true,
       },
 
       // shipment-service resources (backend paths are /shipments and /shipment-logs)
       "/api/shipments": {
-        target: "http://127.0.0.1:4011",
+        target: "http://127.0.0.1:4001",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
       "/api/shipment-logs": {
-        target: "http://127.0.0.1:4011",
+        target: "http://127.0.0.1:4001",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
@@ -33,3 +33,4 @@ export default defineConfig({
     },
   },
 });
+
