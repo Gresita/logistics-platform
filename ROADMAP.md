@@ -5,28 +5,34 @@
 
 ## A) Event-driven Architecture (Kafka, Schema Registry, AsyncAPI)
 - ✅ Kafka pub/sub (shipment.created, shipment.status_changed)  
-  Proof: `services/shipment-service/app/kafka/producer.py`, `services/analytics-service/app/kafka_consumer.py`
-- ✅ DLQ for failed events (shipment.created.dlq)  
-  Proof: `services/tracking-service/app/kafka/producer.py` (send_to_dlq), `consumer.py` retries+DLQ
+  Proof: `services/shipment-service/app/kafka/producer.py`, `services/tracking-service/app/kafka/consumer.py`, `services/analytics-service/app/kafka_consumer.py`
+- 🟡 DLQ for failed events (shipment.created.dlq)  
+  Proof: (verify/adjust) `services/tracking-service/app/kafka/*` (retry logic / DLQ if implemented)
 - ✅ Kafka Schema Registry (schema-registry + subjects registered)  
-  Proof (when done): `docker-compose.infra.yml` (schema-registry), `schemas/*.avsc`
+  Proof: `docker-compose.infra.yml` (schema-registry service), `schemas/`
 - ✅ Avro + Schema Registry (encode/decode + JSON fallback)  
-  Proof (when done): `services/*/app/kafka/*` uses Avro serialization, subjects in registry
+  Proof: `services/*/app/kafka/avro_codec.py`, `services/analytics-service/app/kafka_consumer.py`
 - ❌ AsyncAPI documentation for topics  
   Proof (when done): `docs/asyncapi.yaml`
 
 ## B) Observability (Metrics, Tracing, Logs)
-- ❌ OpenTelemetry instrumentation (FastAPI)  
-- ❌ Jaeger tracing  
-- ❌ Prometheus + Grafana dashboards  
+- ✅ OpenTelemetry instrumentation (FastAPI)  
+  Proof: `services/*/app/observability.py`, `services/*/app/main.py`, `services/*/requirements.txt`
+- ✅ Jaeger tracing  
+  Proof: `docker-compose.infra.yml` (jaeger), OTLP endpoint wiring in k8s env
+- 🟡 Prometheus + Grafana dashboards  
+  Proof: `docker-compose.infra.yml` (prometheus, grafana), `infra/prometheus/`  
 - ❌ Centralized logging (ELK/EFK)
 
 ## C) Containers & Orchestration (Kubernetes)
-- 🟡 Docker Compose for local dev  
-  Proof: `docker-compose.infra.yml`, `start-all.ps1`
-- ❌ Kubernetes manifests (deployments/services/ingress)  
-- ❌ Helm charts or Kustomize  
-- ❌ Auto-healing (liveness/readiness)  
+- ✅ Docker Compose for local infra/dev  
+  Proof: `docker-compose.infra.yml`
+- ✅ Kubernetes manifests (deployments/services/ingress)  
+  Proof: `k8s/`
+- ✅ Helm charts or Kustomize  
+  Proof: `k8s/overlays/prod` (Kustomize)
+- ✅ Auto-healing (liveness/readiness)  
+  Proof: probes in `k8s/base/*-deploy.yaml`
 - ❌ Autoscaling (HPA)
 
 ## D) Service Mesh
@@ -48,11 +54,8 @@
 - ❌ Blue-green / Canary deployments
 
 ## G) Data Engineering / Advanced Analytics
-- 🟡 Analytics service (risk scoring + anomalies + ETA heuristic)  
+- ✅ Analytics service (risk scoring + anomalies + ETA heuristic)  
   Proof: `services/analytics-service/app/*`
 - ❌ ETL/ELT (Airflow/Prefect/Dagster)  
 - ❌ Spark streaming/batch  
 - ❌ Lakehouse/Trino
-
-
-
