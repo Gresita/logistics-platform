@@ -25,3 +25,6 @@ venv/
 services/**/analytics.db
 services/**/*.db
 
+
+# local db files
+services/**/*.db
