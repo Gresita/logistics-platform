@@ -20,8 +20,8 @@
   Proof: `services/*/app/observability.py`, `services/*/app/main.py`, `services/*/requirements.txt`
 - ✅ Jaeger tracing  
   Proof: `docker-compose.infra.yml` (jaeger), OTLP endpoint wiring in k8s env
-- 🟡 Prometheus + Grafana dashboards  
-  Proof: `docker-compose.infra.yml` (prometheus, grafana), `infra/prometheus/`  
+- 🟡 Prometheus + Grafana dashboards (Prometheus targets UP; dashboards minimal)
+  Proof: `k8s/monitoring/`, `infra/prometheus/prometheus.yml`, `docker-compose.infra.yml`
 - ❌ Centralized logging (ELK/EFK)
 
 ## C) Containers & Orchestration (Kubernetes)
@@ -59,4 +59,5 @@
 - ❌ ETL/ELT (Airflow/Prefect/Dagster)  
 - ❌ Spark streaming/batch  
 - ❌ Lakehouse/Trino
+
 
