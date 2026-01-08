@@ -12,7 +12,7 @@
   Proof: `docker-compose.infra.yml` (schema-registry service), `schemas/`
 - ✅ Avro + Schema Registry (encode/decode + JSON fallback)  
   Proof: `services/*/app/kafka/avro_codec.py`, `services/analytics-service/app/kafka_consumer.py`
-- ❌ AsyncAPI documentation for topics  
+- ✅ AsyncAPI documentation for topics  
   Proof (when done): `docs/asyncapi.yaml`
 
 ## B) Observability (Metrics, Tracing, Logs)
@@ -59,3 +59,4 @@
 - ❌ ETL/ELT (Airflow/Prefect/Dagster)  
 - ❌ Spark streaming/batch  
 - ❌ Lakehouse/Trino
+
