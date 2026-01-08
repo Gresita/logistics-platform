@@ -21,7 +21,10 @@ spec:
             - containerPort: 4002
           env:
             - name: DATABASE_URL
-              value: "mysql+pymysql://shipments_user:shipments_pass@host.docker.internal:3308/shipments"
+              valueFrom:
+                secretKeyRef:
+                  name: shipments-db-secret
+                  key: DATABASE_URL
             - name: DB_HOST
               value: "host.docker.internal"
             - name: DB_PORT
@@ -52,4 +55,3 @@ spec:
               port: 4002
             initialDelaySeconds: 10
             periodSeconds: 10
-
