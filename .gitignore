@@ -28,3 +28,6 @@ services/**/*.db
 
 # local db files
 services/**/*.db
+
+.env
+
