@@ -23,3 +23,5 @@ data:
         metrics_path: /metrics
         static_configs:
           - targets: ["analytics-service.logistics.svc.cluster.local:4020"]
+
+
