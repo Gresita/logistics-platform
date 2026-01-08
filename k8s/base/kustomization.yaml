@@ -1,7 +1,10 @@
-﻿resources:
+﻿apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
   - namespace.yaml
   - shipment-deploy.yaml
   - shipment-svc.yaml
+  - shipments-db-secret.yaml
   - tracking-deploy.yaml
   - tracking-svc.yaml
   - analytics-deploy.yaml
