@@ -43,7 +43,7 @@ spec:
             - name: DB_NAME
               value: "shipments"
             - name: KAFKA_BROKERS
-              value: "kubernetes.docker.internal:9092"
+              value: "host.docker.internal:29092"
             - name: SCHEMA_REGISTRY_URL
               value: "http://host.docker.internal:8081"
             - name: OTEL_ENABLED
@@ -62,5 +62,6 @@ spec:
               port: 4002
             initialDelaySeconds: 10
             periodSeconds: 10
+
 
 

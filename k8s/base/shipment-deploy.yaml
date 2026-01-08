@@ -33,7 +33,7 @@ spec:
                   name: shipments-db-secret
                   key: DATABASE_URL
             - name: KAFKA_BROKERS
-              value: "kubernetes.docker.internal:9092"
+              value: "host.docker.internal:29092"
             - name: SCHEMA_REGISTRY_URL
               value: "http://host.docker.internal:8081"
             - name: KAFKA_USE_AVRO
@@ -54,4 +54,5 @@ spec:
               port: 4001
             initialDelaySeconds: 10
             periodSeconds: 10
+
 
