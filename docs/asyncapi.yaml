@@ -1,0 +1,77 @@
+﻿asyncapi: "2.6.0"
+info:
+  title: Logistics Platform Events API
+  version: "1.0.0"
+  description: |
+    AsyncAPI documentation for Kafka topics used by the Logistics Platform.
+    Payloads are primarily Avro (Confluent wire format) with a JSON fallback in some consumers.
+
+servers:
+  localKafka:
+    url: "kafka:29092"
+    protocol: kafka
+    description: Kafka broker inside docker-compose network
+  hostKafka:
+    url: "host.docker.internal:9092"
+    protocol: kafka
+    description: Kafka broker exposed on host for Kubernetes pods (Docker Desktop)
+
+channels:
+  shipment.created:
+    description: Emitted when a shipment is created.
+    publish:
+      operationId: publishShipmentCreated
+      message:
+        $ref: "#/components/messages/ShipmentCreated"
+
+  shipment.status_changed:
+    description: Emitted when shipment status changes.
+    publish:
+      operationId: publishShipmentStatusChanged
+      message:
+        $ref: "#/components/messages/ShipmentStatusChanged"
+
+components:
+  messages:
+    ShipmentCreated:
+      name: ShipmentCreated
+      title: Shipment Created
+      summary: Shipment has been created (Avro primary, JSON fallback).
+      contentType: application/octet-stream
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: Shipment ID
+      payload:
+        type: object
+        additionalProperties: false
+        properties:
+          shipment_id: { type: string }
+          origin: { type: string }
+          destination: { type: string }
+          created_at: { type: string, format: date-time }
+        required: [shipment_id, origin, destination]
+      x-avro-schema-file: "schemas/shipment.created.avsc"
+
+    ShipmentStatusChanged:
+      name: ShipmentStatusChanged
+      title: Shipment Status Changed
+      summary: Shipment status changed (Avro primary, JSON fallback).
+      contentType: application/octet-stream
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: Shipment ID
+      payload:
+        type: object
+        additionalProperties: false
+        properties:
+          shipment_id: { type: string }
+          old_status: { type: string }
+          new_status: { type: string }
+          updated_at: { type: string, format: date-time }
+          location: { type: string }
+        required: [shipment_id, new_status]
+      x-avro-schema-file: "schemas/shipment.status_changed.avsc"
