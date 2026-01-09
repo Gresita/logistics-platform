@@ -43,13 +43,17 @@ spec:
             - name: DB_NAME
               value: "shipments"
             - name: KAFKA_BROKERS
-              value: "host.docker.internal:29092"
+              value: "host.docker.internal:9092"
+            - name: KAFKA_DLQ_TOPIC
+              value: "shipment.events.dlq"
             - name: SCHEMA_REGISTRY_URL
               value: "http://host.docker.internal:8081"
             - name: OTEL_ENABLED
               value: "true"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "http://host.docker.internal:4318/v1/traces"
+            - name: DLQ_TEST_MODE
+              value: "false"
           readinessProbe:
             httpGet:
               path: /health
@@ -62,6 +66,9 @@ spec:
               port: 4002
             initialDelaySeconds: 10
             periodSeconds: 10
+
+
+
 
 
 

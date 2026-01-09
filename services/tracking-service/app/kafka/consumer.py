@@ -8,7 +8,7 @@ from app.db.session import SessionLocal
 from app.db.models import ShipmentEvent
 from app.kafka.producer import send_to_dlq
 from app.kafka.avro_codec import decode_confluent
-
+from app.kafka.dlq import publish_to_dlq
 KAFKA_BROKERS = os.getenv("KAFKA_BROKERS", "127.0.0.1:9092")
 TOPIC = os.getenv("KAFKA_TOPIC_SHIPMENT_CREATED", "shipment.created")
 DLQ_MAX_RETRIES = int(os.getenv("DLQ_MAX_RETRIES", "3"))
@@ -69,7 +69,8 @@ async def start_consumer():
 
 def _store_event(payload: dict):
     if payload.get("reference") == "FAIL":
-        raise ValueError("Simulated processing failure (DLQ test)")
+        if os.getenv("DLQ_TEST_MODE","false").lower() in ("1","true","yes"):
+            raise ValueError("Simulated processing failure (DLQ test)")
 
     db: Session = SessionLocal()
     try:
@@ -84,3 +85,8 @@ def _store_event(payload: dict):
         db.commit()
     finally:
         db.close()
+
+
+
+
+
