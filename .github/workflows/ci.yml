@@ -1,0 +1,67 @@
+﻿name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+
+      - name: Install dependencies and run tests (shipment-service)
+        working-directory: ./services/shipment-service
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          # optional: pytest
+
+      - name: Install dependencies and run tests (tracking-service)
+        working-directory: ./services/tracking-service
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          # optional: pytest
+
+      - name: Install dependencies and run tests (analytics-service)
+        working-directory: ./services/analytics-service
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          # optional: pytest
+
+      - name: Build shipment-service Docker image
+        run: docker build -t shipment-service:ci ./services/shipment-service
+
+      - name: Build tracking-service Docker image
+        run: docker build -t tracking-service:ci ./services/tracking-service
+
+      - name: Build analytics-service Docker image
+        run: docker build -t analytics-service:ci ./services/analytics-service
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: latest
+
+      - name: Deploy microservices to Kubernetes
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG }}
+        run: |
+          kubectl apply -k ./k8s/overlays/prod
+          kubectl rollout restart deploy -n logistics shipment-service tracking-service analytics-service
+          kubectl get pods -n logistics
