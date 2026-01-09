@@ -1,0 +1,29 @@
+﻿groups:
+- name: logistics-alerts
+  rules:
+  - alert: ServiceDown
+    expr: up == 0
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Shërbimi {{ $labels.job }} është offline"
+      description: "Shërbimi '{{ $labels.job }}' nuk ka qenë online për 2 minuta."
+
+  - alert: HighLatency
+    expr: histogram_quantile(0.95, sum(rate(http_request_duration_highr_seconds_bucket[5m])) by (le, job)) > 1
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Latenca 95th percentile e shërbimit {{ $labels.job }} është mbi 1 sekondë"
+      description: "Monitoro nese latenca vazhdon."
+
+  - alert: LowRateOfEvents
+    expr: changes(http_requests_total[5m]) < 5
+    for: 10m
+    labels:
+      severity: info
+    annotations:
+      summary: "Ngjarjet HTTP te shërbimi {{ $labels.job }} janë shumë të pakta"
+      description: "Investigo nëse shërbimi po punon si duhet."
