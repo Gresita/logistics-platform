@@ -10,3 +10,4 @@ spec:
     - name: http
       port: 4001
       targetPort: 4001
+      

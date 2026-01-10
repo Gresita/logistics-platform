@@ -90,13 +90,11 @@
     depends_on:
       - prometheus
 
-
     volumes:
       - ./infra/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./infra/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
 
-volumes:
   shipments-data:
 
 

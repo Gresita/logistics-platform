@@ -1,4 +1,7 @@
 ﻿from contextlib import asynccontextmanager
+import asyncio
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -12,15 +15,40 @@ from app.observability import setup_observability
 
 load_dotenv()
 
+logger = logging.getLogger("shipment-service")
+
+
+async def start_producer_with_retry(max_retries: int = 10, delay_seconds: int = 2) -> bool:
+    """
+    Retry Kafka producer startup. If Kafka is down, don't crash the API.
+    Returns True if producer started, False otherwise (degraded mode).
+    """
+    for i in range(max_retries):
+        try:
+            await start_producer()
+            logger.info("Kafka producer started")
+            return True
+        except Exception as e:
+            logger.warning("Kafka not ready (%s). retry %s/%s", e, i + 1, max_retries)
+            await asyncio.sleep(delay_seconds)
+
+    logger.error("Kafka unavailable. Starting API without producer (degraded mode).")
+    return False
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     ensure_admin_user()
-    await start_producer()
+
+    producer_started = await start_producer_with_retry()
+    app.state.kafka_producer_started = producer_started
+
     try:
         yield
     finally:
-        await stop_producer()
+        # stop only if it actually started (avoid errors on shutdown)
+        if getattr(app.state, "kafka_producer_started", False):
+            await stop_producer()
 
 
 app = FastAPI(
@@ -54,10 +82,3 @@ app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "shipment-service"}
-
-
-
-
-
-
-

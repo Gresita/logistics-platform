@@ -1,0 +1,28 @@
+﻿{
+  \"uid\": \"logistics-demo\",
+  \"title\": \"Logistics Platform - Demo\",
+  \"timezone\": \"browser\",
+  \"refresh\": \"10s\",
+  \"schemaVersion\": 39,
+  \"version\": 1,
+  \"panels\": [
+    {
+      \"type\": \"timeseries\",
+      \"title\": \"HTTP Requests / sec (by service)\",
+      \"datasource\": { \"type\": \"prometheus\", \"uid\": \"__default__\" },
+      \"gridPos\": { \"x\": 0, \"y\": 0, \"w\": 24, \"h\": 8 },
+      \"targets\": [
+        { \"refId\": \"A\", \"expr\": \"sum(rate(http_requests_total[1m])) by (job)\", \"legendFormat\": \"{{job}}\" }
+      ]
+    },
+    {
+      \"type\": \"timeseries\",
+      \"title\": \"HTTP p95 latency (seconds) by service\",
+      \"datasource\": { \"type\": \"prometheus\", \"uid\": \"__default__\" },
+      \"gridPos\": { \"x\": 0, \"y\": 8, \"w\": 24, \"h\": 8 },
+      \"targets\": [
+        { \"refId\": \"A\", \"expr\": \"histogram_quantile(0.95, sum(rate(http_request_duration_highr_seconds_bucket[5m])) by (le, job))\", \"legendFormat\": \"{{job}} p95\" }
+      ]
+    }
+  ]
+}
