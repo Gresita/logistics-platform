@@ -50,7 +50,7 @@ export default function App() {
         path="/shipments/new"
         element={
           <RequireAuth>
-            <RequireRole allow={["admin", "user"]} redirectTo="/shipman">
+            <RequireRole allow={["admin"]} redirectTo="/shipman">
               <CreateShipment />
             </RequireRole>
           </RequireAuth>
@@ -103,5 +103,4 @@ export default function App() {
     </Routes>
   );
 }
-
 

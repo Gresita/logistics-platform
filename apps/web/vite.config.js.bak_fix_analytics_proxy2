@@ -10,6 +10,13 @@ export default defineConfig({
       "/api/v1": {
         target: "http://127.0.0.1:8005",
         changeOrigin: true,
+    "/analytics": {
+      target: "http://127.0.0.1:4020",
+      changeOrigin: true,
+      secure: false,
+      rewrite: (p) => p.replace(/^\/analytics/, ""),
+    },
+
       },
 
       // shipment-service resources (backend paths are /shipments and /shipment-logs)
@@ -25,13 +32,6 @@ export default defineConfig({
       },
 
       // tracking-service (events) - prefix /tracking to avoid conflicts
-      "/analytics": {
-        target: "http://127.0.0.1:4020",
-        changeOrigin: true,
-        secure: false,
-        rewrite: (p) => p.replace(/^\/analytics/, ""),
-      },
-
       "/tracking": {
         target: "http://127.0.0.1:8002",
         changeOrigin: true,
@@ -40,7 +40,6 @@ export default defineConfig({
     },
   },
 });
-
 
 
 

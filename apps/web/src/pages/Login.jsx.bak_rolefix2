@@ -60,7 +60,7 @@ export default function Login() {
       login(token);
 
       const claims = decodeJwt(token);
-      const role = (claims?.role || "").toLowerCase();
+      const role = claims?.role;
 
       if (role === "shipman") {
         nav("/shipman", { replace: true });
@@ -190,5 +190,4 @@ export default function Login() {
     </div>
   );
 }
-
 

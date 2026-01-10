@@ -25,25 +25,13 @@ export default defineConfig({
       },
 
       // tracking-service (events) - prefix /tracking to avoid conflicts
-      "/analytics": {
-        target: "http://127.0.0.1:4020",
-        changeOrigin: true,
-        secure: false,
-        rewrite: (p) => p.replace(/^\/analytics/, ""),
-      },
-
       "/tracking": {
-        target: "http://127.0.0.1:8002",
+        target: "http://127.0.0.1:4002",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/tracking/, ""),
       },
     },
   },
 });
-
-
-
-
-
 
 

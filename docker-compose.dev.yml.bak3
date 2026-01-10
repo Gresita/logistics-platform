@@ -22,8 +22,7 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://host.docker.internal:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-  mysql-tracking:
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1  mysql-tracking:
     image: mysql:8.0
     command: ["mysqld", "--default-authentication-plugin=mysql_native_password"]
     environment:
@@ -64,12 +63,20 @@ services:
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "4001"]
 
   # Tracking App (nÃ«se e ke, nÃ«se jo mund ta heqÃ«sh)
+  tracking:
+    build: ./tracking
+    depends_on:
+      - mysql-tracking
+      - kafka
+    environment:
+      DATABASE_URL: "mysql+pymysql://app:app@mysql-tracking:3306/tracking"
+      KAFKA_BROKER: "kafka:9092"
+    ports:
+      - "4002:4002"
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "4002"]
 
 volumes:
   shipments-data:
   tracking-data:
-
-
-
 
 

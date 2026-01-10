@@ -29,7 +29,7 @@ function getTokenInfo(token) {
     expMs,
     isExpired,
     user: payload
-      ? { username: payload.sub || null, role: payload.role ? String(payload.role).toLowerCase() : null }
+      ? { username: payload.sub || null, role: payload.role || null }
       : null,
   };
 }
@@ -124,6 +124,4 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
   return ctx;
 }
-
-
 

@@ -3,35 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { PackagePlus, ArrowLeft } from "lucide-react";
 
 import DashboardLayout from "../components/DashboardLayout";
-import { apiFetch, SHIPMENT_API } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { apiFetch, SHIPMENT_API } from "../lib/api";
 
 export default function CreateShipment() {
   const nav = useNavigate();
-  const { role } = useAuth();
-  const isAdmin = role === "admin";
-
-  const [shipmen, setShipmen] = useState([]);
-  const [assignedTo, setAssignedTo] = useState("");
-
   const [form, setForm] = useState({
     tracking_number: "",
     origin: "",
     destination: "",
     status: "CREATED",
   });
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    (async () => {
-      const res = await apiFetch("/api/v1/admin/users", { auth: true });
-      const list = res?.items || [];
-      setShipmen(list.filter((u) => u.role === "shipman"));
-    })().catch(() => {});
-  }, [isAdmin]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -43,7 +27,6 @@ export default function CreateShipment() {
         destination: form.destination.trim(),
         status: form.status,
       };
-
       if (form.tracking_number.trim()) payload.tracking_number = form.tracking_number.trim();
       if (isAdmin && assignedTo) payload.assigned_to = Number(assignedTo);
 
@@ -71,7 +54,7 @@ export default function CreateShipment() {
               <PackagePlus className="w-5 h-5" />
               New Shipment
             </div>
-            <div className="text-xs text-slate-500 mt-1">Create a shipment.</div>
+            <div className="text-xs text-slate-500 mt-1">Create a shipment (admin/user).</div>
           </div>
 
           <button
@@ -131,6 +114,7 @@ export default function CreateShipment() {
             </div>
           ) : null}
 
+
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700">Origin</label>
             <input
@@ -174,3 +158,8 @@ export default function CreateShipment() {
     </DashboardLayout>
   );
 }
+
+
+
+
+

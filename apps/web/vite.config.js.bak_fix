@@ -8,42 +8,29 @@ export default defineConfig({
     proxy: {
       // shipment-service auth (backend path already starts with /api/v1)
       "/api/v1": {
-        target: "http://127.0.0.1:8005",
+        target: "http://127.0.0.1:4001",
         changeOrigin: true,
       },
 
       // shipment-service resources (backend paths are /shipments and /shipment-logs)
       "/api/shipments": {
-        target: "http://127.0.0.1:8005",
+        target: "http://127.0.0.1:4001",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
       "/api/shipment-logs": {
-        target: "http://127.0.0.1:8005",
+        target: "http://127.0.0.1:4001",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
 
       // tracking-service (events) - prefix /tracking to avoid conflicts
-      "/analytics": {
-        target: "http://127.0.0.1:4020",
-        changeOrigin: true,
-        secure: false,
-        rewrite: (p) => p.replace(/^\/analytics/, ""),
-      },
-
       "/tracking": {
-        target: "http://127.0.0.1:8002",
+        target: "http://127.0.0.1:4002",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/tracking/, ""),
       },
     },
   },
 });
-
-
-
-
-
-
 
